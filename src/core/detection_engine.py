@@ -3,6 +3,8 @@ from pathlib import Path
 from dataclasses import dataclass
 import numpy as np
 
+_TRACKER_CONFIG = str(Path(__file__).parent.parent.parent / "assets" / "tracker" / "bytetrack.yaml")
+
 @dataclass
 class RawDetection:
     track_id: int
@@ -16,6 +18,8 @@ class DetectionEngine:
         if not path.exists():
             raise FileNotFoundError(f"Model not found: {model_path}")
         self._model = YOLO(str(path))
+        tracker_path = Path(_TRACKER_CONFIG)
+        self._tracker = str(tracker_path) if tracker_path.exists() else "bytetrack"
 
     def track_frame(self, frame: np.ndarray, frame_index: int, confidence: float = 0.5) -> list:
         results = self._model.track(
@@ -23,6 +27,7 @@ class DetectionEngine:
             persist=True,
             conf=confidence,
             verbose=False,
+            tracker=self._tracker,
         )
         detections = []
         for r in results:

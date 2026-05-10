@@ -20,10 +20,12 @@ pipe-defect-inspector/
 ├── models/best.pt                    ← already exists
 ├── assets/
 │   ├── brand/HOW_TO_USE.md           ← already exists
-│   └── i18n/
-│       ├── vi.json
-│       ├── en.json
-│       └── ko.json
+│   ├── i18n/
+│   │   ├── vi.json
+│   │   ├── en.json
+│   │   └── ko.json
+│   └── tracker/
+│       └── bytetrack.yaml            ← custom ByteTrack config
 ├── src/
 │   ├── __init__.py
 │   ├── core/
@@ -691,15 +693,31 @@ git commit -m "feat: VideoLoader reads frames and metadata via OpenCV"
 ## Task 7: DetectionEngine
 
 **Files:**
+- Create: `assets/tracker/bytetrack.yaml`
 - Create: `src/core/detection_engine.py`
 
-- [ ] **Step 1: Implement `src/core/detection_engine.py`**
+**Vấn đề cần giải quyết (Fix A):** Camera di chuyển qua đường ống → cùng 1 lỗi vật lý có thể tạm mất khỏi frame rồi xuất hiện lại. ByteTrack default `track_buffer=30` quá ngắn → reacquire = track_id mới → đếm trùng. Tăng lên 90 frame (~3 giây ở 30fps).
+
+- [ ] **Step 1: Tạo `assets/tracker/bytetrack.yaml`**
+
+```yaml
+tracker_type: bytetrack
+track_high_thresh: 0.25
+track_low_thresh: 0.1
+new_track_thresh: 0.25
+track_buffer: 90
+match_thresh: 0.8
+```
+
+- [ ] **Step 2: Implement `src/core/detection_engine.py`**
 
 ```python
 from ultralytics import YOLO
 from pathlib import Path
 from dataclasses import dataclass
 import numpy as np
+
+_TRACKER_CONFIG = str(Path(__file__).parent.parent.parent / "assets" / "tracker" / "bytetrack.yaml")
 
 @dataclass
 class RawDetection:
@@ -714,6 +732,8 @@ class DetectionEngine:
         if not path.exists():
             raise FileNotFoundError(f"Model not found: {model_path}")
         self._model = YOLO(str(path))
+        tracker_path = Path(_TRACKER_CONFIG)
+        self._tracker = str(tracker_path) if tracker_path.exists() else "bytetrack"
 
     def track_frame(self, frame: np.ndarray, frame_index: int, confidence: float = 0.5) -> list[RawDetection]:
         results = self._model.track(
@@ -721,6 +741,7 @@ class DetectionEngine:
             persist=True,
             conf=confidence,
             verbose=False,
+            tracker=self._tracker,
         )
         detections = []
         for r in results:
@@ -742,7 +763,7 @@ class DetectionEngine:
         self._model.predictor = None
 ```
 
-- [ ] **Step 2: Smoke test with real model and video frame**
+- [ ] **Step 3: Smoke test with real model and video frame**
 
 ```bash
 python -c "
@@ -761,11 +782,11 @@ for d in dets:
 
 Expected: prints detection results (0 or more) without error.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/core/detection_engine.py
-git commit -m "feat: DetectionEngine wraps YOLOv8 track with persist=True"
+git add assets/tracker/bytetrack.yaml src/core/detection_engine.py
+git commit -m "feat: DetectionEngine — ByteTrack custom config (track_buffer=90) to reduce duplicate IDs"
 ```
 
 ---
@@ -830,6 +851,24 @@ def test_frame_bbox_lookup():
     result = store.get_bbox_at_frame(90)
     assert result is not None
     assert result[0] == (10, 20, 30, 40)
+
+def test_deduplicate_merges_nearby():
+    # track_id 1 @ frame 0 (t=0s), track_id 2 @ frame 60 (t=2s) — same bbox → dup
+    store = DetectionStore(fps=30.0)
+    store.add(RawDetection(1, 0, 0.9, (10, 20, 30, 40)), frame=None)
+    store.add(RawDetection(2, 60, 0.85, (12, 22, 28, 38)), frame=None)  # overlapping bbox
+    removed = store.deduplicate(time_window_sec=5.0, iou_threshold=0.1)
+    assert removed == 1
+    assert len(store.get_all()) == 1
+
+def test_deduplicate_keeps_distant():
+    # track_id 1 @ frame 0 (t=0s), track_id 2 @ frame 300 (t=10s) — far in time → kept
+    store = DetectionStore(fps=30.0)
+    store.add(RawDetection(1, 0, 0.9, (10, 20, 30, 40)), frame=None)
+    store.add(RawDetection(2, 300, 0.85, (12, 22, 28, 38)), frame=None)
+    removed = store.deduplicate(time_window_sec=5.0, iou_threshold=0.1)
+    assert removed == 0
+    assert len(store.get_all()) == 2
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -842,8 +881,9 @@ Expected: `ImportError`
 
 - [ ] **Step 3: Implement `src/core/detection_store.py`**
 
+**Vấn đề cần giải quyết (Fix B):** Dù ByteTrack buffer tăng, camera rung mạnh hoặc đi qua lỗi 2 lần vẫn có thể sinh track_id mới cho cùng 1 lỗi vật lý. `deduplicate()` gộp các record xuất hiện gần nhau về thời gian VÀ vị trí.
+
 ```python
-import numpy as np
 from src.core.models import DefectRecord
 from src.core.detection_engine import RawDetection
 
@@ -882,9 +922,46 @@ class DetectionStore:
     def get_bbox_at_frame(self, frame_index: int) -> list[tuple] | None:
         return self._frame_bboxes.get(frame_index)
 
+    def deduplicate(self, time_window_sec: float = 5.0, iou_threshold: float = 0.1) -> int:
+        """Merge records close in time AND spatially overlapping. Returns count removed."""
+        records = self.get_all()
+        removed = 0
+        kept_ids: list[int] = []
+
+        for rec in records:
+            is_dup = False
+            for kept_id in kept_ids:
+                kept = self._records[kept_id]
+                if abs(rec.timestamp_sec - kept.timestamp_sec) > time_window_sec:
+                    continue
+                if _iou(rec.bbox, kept.bbox) >= iou_threshold:
+                    is_dup = True
+                    break
+            if is_dup:
+                del self._records[rec.track_id]
+                removed += 1
+            else:
+                kept_ids.append(rec.track_id)
+
+        return removed
+
     def clear(self) -> None:
         self._records.clear()
         self._frame_bboxes.clear()
+
+
+def _iou(a: tuple, b: tuple) -> float:
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    ix = max(ax, bx)
+    iy = max(ay, by)
+    ix2 = min(ax + aw, bx + bw)
+    iy2 = min(ay + ah, by + bh)
+    inter = max(0, ix2 - ix) * max(0, iy2 - iy)
+    if inter == 0:
+        return 0.0
+    union = aw * ah + bw * bh - inter
+    return inter / union if union > 0 else 0.0
 ```
 
 - [ ] **Step 4: Run to verify pass**
@@ -1761,6 +1838,10 @@ class MainWindow(QMainWindow):
 
     def _on_processing_done(self):
         self.progress_bar.setVisible(False)
+        self._store.deduplicate(time_window_sec=5.0, iou_threshold=0.1)
+        self.defect_list.clear()
+        for record in self._store.get_all():
+            self.defect_list.add_record(record)
         count = len(self._store.get_all())
         self.status_bar.showMessage(lm.t("status_complete", count=count))
 

@@ -23,7 +23,7 @@ Mỗi module là một class độc lập với interface rõ ràng (input/outpu
 |---|---|---|---|
 | `VideoLoader` | đường dẫn file video | iterator frames + metadata (fps, total_frames, duration) | dùng OpenCV |
 | `DetectionEngine` | frames (batch), model path, confidence threshold | list detections có track_id, confidence, bbox, frame_index | dùng `model.track(batch)` |
-| `DetectionStore` | stream detections từ engine | dict {track_id: DefectRecord} | chỉ lưu frame đầu tiên mỗi track_id |
+| `DetectionStore` | stream detections từ engine | dict {track_id: DefectRecord} | chỉ lưu frame đầu tiên mỗi track_id; `deduplicate()` gộp lỗi trùng sau processing |
 | `ExportManager` | DetectionStore, output path, format | file CSV hoặc PDF | dùng pandas + reportlab |
 | `AppConfig` | — | model path mặc định, confidence threshold, theme, language | đọc từ `config.json` |
 | `LanguageManager` | language code (vi/en/ko) | dict chuỗi UI | đọc từ `assets/i18n/*.json` |
@@ -116,19 +116,42 @@ assets/
 QThread: ProcessingWorker
 │
 ├── Producer Thread
-│   └── VideoLoader.read_frames() → batch N frames → Frame Queue
+│   └── VideoLoader.read_frames() → frame by frame → Frame Queue
 │
 └── Consumer Thread
-    └── DetectionEngine.track(batch) → DetectionStore.add()
+    └── DetectionEngine.track_frame() → DetectionStore.add()
         └── emit signal progress → UI cập nhật progress bar
+
+Sau khi xong → DetectionStore.deduplicate() → refresh DefectListWidget
 ```
 
 **Nguyên tắc tracking:**
-- Dùng `model.track(batch, persist=True)` — YOLOv8 gán `track_id` nhất quán
-- `persist=True` giữ tracking state giữa các batch
+- Dùng `model.track(persist=True, tracker=bytetrack.yaml)` — YOLOv8 + ByteTrack gán `track_id` nhất quán
+- `persist=True` giữ tracking state giữa các frame
 - `DetectionStore` chỉ lưu lần xuất hiện **đầu tiên** của mỗi `track_id`
-- Tracking chạy tuần tự theo thứ tự frame (không split video) để đảm bảo ID nhất quán
-- Parallel là I/O (đọc frame) song song với Inference (xử lý batch trước)
+- Tracking chạy tuần tự theo thứ tự frame để đảm bảo ID nhất quán
+- Parallel là I/O (đọc frame) song song với Inference (xử lý frame trước)
+
+**ByteTrack config (`assets/tracker/bytetrack.yaml`):**
+
+Camera đường ống di chuyển liên tục — cùng 1 lỗi vật lý có thể xuất hiện trên nhiều frame rồi tạm mất rồi xuất hiện lại khi tracker mất dấu. Config mặc định `track_buffer=30` (1 giây ở 30fps) quá ngắn, dẫn đến mỗi lần reacquire là một `track_id` mới → đếm trùng. Giải pháp:
+
+```yaml
+tracker_type: bytetrack
+track_high_thresh: 0.25   # ngưỡng detection để bắt đầu track
+track_low_thresh: 0.1     # ngưỡng thấp để recover track đang mất
+new_track_thresh: 0.25    # ngưỡng tạo track mới
+track_buffer: 90          # 90 frame ≈ ~3 giây ở 30fps (mặc định 30)
+match_thresh: 0.8         # ngưỡng IoU để match track
+```
+
+**Deduplication (post-processing):**
+
+ByteTrack tăng buffer giúp giữ track_id, nhưng khi camera di chuyển qua lại hoặc rung nhiều, vẫn có thể assign track_id mới cho cùng 1 lỗi vật lý. Sau khi processing xong, `DetectionStore.deduplicate()` được gọi để gộp các record có:
+- `|timestamp_A - timestamp_B| < time_window_sec` (mặc định 5 giây), **VÀ**
+- `IoU(bbox_A, bbox_B) >= iou_threshold` (mặc định 0.1 — bounding box chồng lên nhau)
+
+Record xuất hiện sau (frame_number cao hơn) bị xóa. Defect list được refresh sau dedup.
 
 **Model config:**
 - Path mặc định: `models/best.pt` (bundle sẵn trong app)
@@ -182,10 +205,12 @@ pipe-defect-inspector/
 │   ├── brand/
 │   │   ├── HOW_TO_USE.md
 │   │   └── logo.png
-│   └── i18n/
-│       ├── vi.json
-│       ├── en.json
-│       └── ko.json
+│   ├── i18n/
+│   │   ├── vi.json
+│   │   ├── en.json
+│   │   └── ko.json
+│   └── tracker/
+│       └── bytetrack.yaml       ← custom ByteTrack config (track_buffer=90)
 ├── src/
 │   ├── core/
 │   │   ├── video_loader.py      ← VideoLoader
