@@ -707,6 +707,7 @@ track_low_thresh: 0.1
 new_track_thresh: 0.25
 track_buffer: 90
 match_thresh: 0.8
+fuse_score: True
 ```
 
 - [ ] **Step 2: Implement `src/core/detection_engine.py`**

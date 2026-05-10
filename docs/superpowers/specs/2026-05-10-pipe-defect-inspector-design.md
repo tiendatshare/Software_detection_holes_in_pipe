@@ -143,6 +143,7 @@ track_low_thresh: 0.1     # ngưỡng thấp để recover track đang mất
 new_track_thresh: 0.25    # ngưỡng tạo track mới
 track_buffer: 90          # 90 frame ≈ ~3 giây ở 30fps (mặc định 30)
 match_thresh: 0.8         # ngưỡng IoU để match track
+fuse_score: True          # bắt buộc có trong ultralytics ByteTrack
 ```
 
 **Deduplication (post-processing):**
