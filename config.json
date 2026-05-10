@@ -1,0 +1,7 @@
+{
+  "model_path": "models/best.pt",
+  "confidence_threshold": 0.5,
+  "theme": "slate_amber",
+  "theme_mode": "light",
+  "language": "vi"
+}
