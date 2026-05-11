@@ -6,13 +6,6 @@ A Windows desktop application for automated pipeline inspection — load an insp
 
 ---
 
-## Screenshots
-
-| Detection in progress | Defect list with click-to-seek |
-|---|---|
-| *(Video player with red bounding box overlay)* | *(Color-coded table, click any row to jump)* |
-
----
 
 ## Features
 
@@ -49,7 +42,7 @@ git clone https://github.com/tiendatshare/Software_dectiontion_holes_in_pipe.git
 cd Software_dectiontion_holes_in_pipe
 ```
 
-### 2. Add your model
+### 2. Add your model (optional) 
 
 Place your trained YOLOv8 model file at:
 
@@ -59,7 +52,7 @@ models/best.pt
 
 If you don't have a model yet, see [Training your own model](#training-your-own-model).
 
-### 3. Create virtual environment and install dependencies
+### 3. Create a virtual environment and install dependencies
 
 ```bash
 python -m venv venv
@@ -69,7 +62,7 @@ pip install -r requirements.txt
 
 ### 4. Run the app
 
-Double-click `run.bat`, or from the terminal:
+Double-click `run.bat` if you don't want to open VS Code, or from the terminal:
 
 ```bash
 venv\Scripts\python main.py
@@ -125,8 +118,12 @@ Software_dectiontion_holes_in_pipe/
 │       ├── language_manager.py
 │       ├── branding_loader.py
 │       └── theme_manager.py
+|
+└──docs/superpowers              ← Doc md of project(if you want recover new project. Use AI to read and create code from this doc)
+|
 └── tests/
     └── core/                    ← pytest unit tests
+
 ```
 
 ---
@@ -149,7 +146,7 @@ All settings are saved to `config.json` automatically when you change them in th
 | Key | Default | Description |
 |---|---|---|
 | `model_path` | `models/best.pt` | Path to the YOLOv8 `.pt` model |
-| `confidence_threshold` | `0.5` | Detection confidence (0.1 – 0.99) |
+| `confidence_threshold` | `0.7` | Detection confidence (0.1 – 0.99) |
 | `theme` | `slate_amber` | `steel_blue` / `slate_amber` / `carbon_green` |
 | `theme_mode` | `light` | `light` / `dark` |
 | `language` | `vi` | `vi` / `en` / `ko` |
