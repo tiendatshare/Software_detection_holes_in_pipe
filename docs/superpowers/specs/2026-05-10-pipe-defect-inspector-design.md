@@ -210,6 +210,7 @@ pipe-defect-inspector/
 │   │   ├── vi.json
 │   │   ├── en.json
 │   │   └── ko.json
+│   ├── icons/                   ← Feather Icons SVG (15 files, MIT)
 │   └── tracker/
 │       └── bytetrack.yaml       ← custom ByteTrack config (track_buffer=90)
 ├── src/
@@ -219,12 +220,13 @@ pipe-defect-inspector/
 │   │   ├── detection_store.py   ← DetectionStore, DefectRecord
 │   │   └── export_manager.py    ← ExportManager
 │   ├── ui/
-│   │   ├── main_window.py
-│   │   ├── video_player_widget.py
-│   │   ├── defect_list_widget.py
-│   │   └── toolbar_widget.py
+│   │   ├── main_window.py           ← icon status bar, EmptyState wire
+│   │   ├── video_player_widget.py   ← DefectSeekBar, EmptyStateWidget
+│   │   ├── defect_list_widget.py    ← DefectCard (replaces QTableWidget)
+│   │   └── toolbar_widget.py        ← Feather icons on all buttons
 │   └── utils/
 │       ├── app_config.py        ← AppConfig
+│       ├── icon_loader.py       ← load + colorize Feather SVG icons
 │       ├── language_manager.py  ← LanguageManager
 │       ├── branding_loader.py   ← BrandingLoader
 │       └── theme_manager.py     ← ThemeManager

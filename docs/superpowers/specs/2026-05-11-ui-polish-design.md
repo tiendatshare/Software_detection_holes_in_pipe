@@ -1,6 +1,6 @@
 # UI Polish — Pipe Defect Inspector Design Spec
 **Date:** 2026-05-11  
-**Status:** Approved
+**Status:** Implemented
 
 ---
 
@@ -93,7 +93,7 @@ Button "Chọn Video" trong empty state emit signal `open_video_clicked` → `Ma
 
 ```
 ╭── DefectCard ────────────────────────╮
-│ ▌  #1   00:00:03      ● 87%  HIGH   │
+│ ▌  #1   00:00:03          ● 87%      │
 ╰──────────────────────────────────────╯
 ```
 
@@ -101,7 +101,7 @@ Button "Chọn Video" trong empty state emit signal `open_video_clicked` → `Ma
 - Border trái 4px màu theo confidence: đỏ ≥0.8, vàng 0.5-0.8, xanh <0.5
 - `#ID` — bold, font lớn hơn
 - Timestamp — monospace
-- Badge confidence: `QLabel` với `border-radius: 10px`, background màu confidence, text "87% HIGH" / "65% MED" / "42% LOW"
+- Badge confidence: `QLabel` với `border-radius: 10px`, background màu confidence, text "87%" (chỉ số, không có label HIGH/MED/LOW)
 - `setCursor(PointingHandCursor)`, `mousePressEvent` → emit `defect_selected(timestamp_sec)`
 
 **Interface giữ nguyên với MainWindow:**
