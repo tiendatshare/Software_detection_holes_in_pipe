@@ -118,9 +118,6 @@ Software_dectiontion_holes_in_pipe/
 │       ├── language_manager.py
 │       ├── branding_loader.py
 │       └── theme_manager.py
-|
-└──docs/superpowers              ← Doc md of project(if you want recover new project. Use AI to read and create code from this doc)
-|
 └── tests/
     └── core/                    ← pytest unit tests
 
