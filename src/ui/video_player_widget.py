@@ -4,7 +4,6 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                               QPushButton, QStackedWidget)
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QSize
 from PyQt6.QtGui import QImage, QPixmap, QPainter, QColor, QFont, QPolygon
-from src.core.detection_store import DetectionStore
 from src.utils.icon_loader import load_icon
 
 
