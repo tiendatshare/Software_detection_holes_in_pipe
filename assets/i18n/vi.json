@@ -21,5 +21,7 @@
   "error_video_not_found": "Không mở được video: {path}",
   "theme_light": "Sáng",
   "theme_dark": "Tối",
-  "language_label": "Ngôn ngữ"
+  "language_label": "Ngôn ngữ",
+  "empty_state_message": "Mở video để bắt đầu phân tích",
+  "empty_state_button": "Chọn Video"
 }

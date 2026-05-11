@@ -168,6 +168,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(lm.t("app_title"))
         self.toolbar.retranslate_ui()
         self.defect_list.retranslate_ui()
+        self.player.retranslate_ui()
         self._set_status("check-circle", "#43A047", lm.t("status_ready"))
 
     def _on_theme_changed(self, theme: str, mode: str):

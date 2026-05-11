@@ -21,5 +21,7 @@
   "error_video_not_found": "Cannot open video: {path}",
   "theme_light": "Light",
   "theme_dark": "Dark",
-  "language_label": "Language"
+  "language_label": "Language",
+  "empty_state_message": "Open a video to start analysis",
+  "empty_state_button": "Open Video"
 }
