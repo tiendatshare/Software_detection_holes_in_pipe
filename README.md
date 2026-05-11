@@ -2,7 +2,6 @@
 
 A Windows desktop application for automated pipeline inspection — load an inspection video, run a pre-trained YOLOv8 model to detect defects, review results in a two-panel UI, and export reports as CSV or PDF.
 
-> **Vietnamese version:** [README_VN.md](README_VN.md)
 
 ---
 
