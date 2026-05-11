@@ -114,13 +114,16 @@ class MainWindow(QMainWindow):
 
     def _on_defect_found(self, record: DefectRecord):
         self.defect_list.add_record(record)
+        self.player.add_defect_marker(record.timestamp_sec, record.defect_id)
 
     def _on_processing_done(self):
         self.progress_bar.setVisible(False)
         self._store.deduplicate(time_window_sec=5.0, iou_threshold=0.1)
         self.defect_list.clear()
+        self.player.clear_markers()
         for record in self._store.get_all():
             self.defect_list.add_record(record)
+            self.player.add_defect_marker(record.timestamp_sec, record.defect_id)
         count = len(self._store.get_all())
         self.status_bar.showMessage(lm.t("status_complete", count=count))
 

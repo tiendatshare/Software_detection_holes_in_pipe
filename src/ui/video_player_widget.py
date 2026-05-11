@@ -1,9 +1,84 @@
 import cv2
 import numpy as np
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSlider
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
+from PyQt6.QtGui import QImage, QPixmap, QPainter, QColor, QFont, QPolygon
 from src.core.detection_store import DetectionStore
+
+
+class DefectSeekBar(QWidget):
+    value_changed = pyqtSignal(int)  # 0-1000
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._value = 0
+        self._markers: list[tuple[float, str]] = []  # (ratio 0-1, label)
+        self.setMinimumHeight(40)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def setValue(self, value: int) -> None:
+        self._value = max(0, min(1000, value))
+        self.update()
+
+    def value(self) -> int:
+        return self._value
+
+    def set_markers(self, markers: list[tuple[float, str]]) -> None:
+        self._markers = markers
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        w, h = self.width(), self.height()
+        bar_h = 4
+        bar_y = h - bar_h - 6
+
+        # Background bar
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor("#D0D7E3"))
+        painter.drawRoundedRect(0, bar_y, w, bar_h, 2, 2)
+
+        # Progress fill
+        prog_w = int(self._value / 1000 * w)
+        painter.setBrush(QColor("#1565C0"))
+        painter.drawRoundedRect(0, bar_y, prog_w, bar_h, 2, 2)
+
+        # Defect markers (triangles + labels)
+        for ratio, label in self._markers:
+            x = int(ratio * w)
+            tri = QPolygon([
+                QPoint(x,     bar_y - 2),
+                QPoint(x - 5, bar_y - 11),
+                QPoint(x + 5, bar_y - 11),
+            ])
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor("#E53935"))
+            painter.drawPolygon(tri)
+            painter.setPen(QColor("#E53935"))
+            painter.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
+            painter.drawText(x - 12, bar_y - 25, 24, 14,
+                             Qt.AlignmentFlag.AlignHCenter, label)
+
+        # Current position dot
+        pos_x = int(self._value / 1000 * w)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor("#1565C0"))
+        painter.drawEllipse(pos_x - 5, bar_y - 1, 10, bar_h + 2)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._seek(event.position().x())
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            self._seek(event.position().x())
+
+    def _seek(self, x: float):
+        self._value = max(0, min(1000, int(x / max(self.width(), 1) * 1000)))
+        self.value_changed.emit(self._value)
+        self.update()
+
 
 class VideoPlayerWidget(QWidget):
     position_changed = pyqtSignal(float)
@@ -18,23 +93,27 @@ class VideoPlayerWidget(QWidget):
         self._current_frame = 0
         self._is_playing = False
         self._store = None
+        self._markers: list[tuple[float, str]] = []
         self._build_ui()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+
         self.video_label = QLabel()
         self.video_label.setObjectName("video_label")
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_label.setMinimumSize(640, 360)
         layout.addWidget(self.video_label, stretch=1)
+
         controls = QHBoxLayout()
         self.btn_play = QPushButton("▶")
         self.btn_play.setFixedWidth(40)
         self.btn_play.clicked.connect(self.toggle_play)
-        self.seek_bar = QSlider(Qt.Orientation.Horizontal)
-        self.seek_bar.setRange(0, 1000)
-        self.seek_bar.sliderMoved.connect(self._on_seek_bar_moved)
+
+        self.seek_bar = DefectSeekBar()
+        self.seek_bar.value_changed.connect(self._on_seek_bar_moved)
+
         self.time_label = QLabel("00:00:00 / 00:00:00")
         controls.addWidget(self.btn_play)
         controls.addWidget(self.seek_bar)
@@ -49,10 +128,22 @@ class VideoPlayerWidget(QWidget):
         self._total_frames = int(self._cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self._timer.setInterval(int(1000 / self._fps))
         self._current_frame = 0
+        self.clear_markers()
         self._show_current_frame()
 
     def set_store(self, store) -> None:
         self._store = store
+
+    def add_defect_marker(self, timestamp_sec: float, defect_id: int) -> None:
+        if self._total_frames <= 0:
+            return
+        ratio = min((timestamp_sec * self._fps) / self._total_frames, 1.0)
+        self._markers.append((ratio, f"#{defect_id}"))
+        self.seek_bar.set_markers(self._markers)
+
+    def clear_markers(self) -> None:
+        self._markers = []
+        self.seek_bar.set_markers([])
 
     def seek_to(self, timestamp_sec: float) -> None:
         if not self._cap:
