@@ -96,7 +96,7 @@ class DefectListWidget(QWidget):
 
     def add_record(self, record: DefectRecord) -> None:
         self._records.append(record)
-        card = DefectCard(record)
+        card = DefectCard(record, self.cards_widget)
         card.clicked.connect(self.defect_selected)
         self._cards.append(card)
         self.cards_layout.insertWidget(self.cards_layout.count() - 1, card)
