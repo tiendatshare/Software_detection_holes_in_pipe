@@ -1,9 +1,37 @@
 import cv2
 import numpy as np
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+                              QPushButton, QStackedWidget)
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QSize
 from PyQt6.QtGui import QImage, QPixmap, QPainter, QColor, QFont, QPolygon
-from src.core.detection_store import DetectionStore
+from src.utils.icon_loader import load_icon
+
+
+class EmptyStateWidget(QWidget):
+    open_video_clicked = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setSpacing(12)
+
+        icon_lbl = QLabel()
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_lbl.setPixmap(load_icon("video", "#888888", 56).pixmap(56, 56))
+        layout.addWidget(icon_lbl)
+
+        self.text_lbl = QLabel("Mở video để bắt đầu phân tích")
+        self.text_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.text_lbl.setStyleSheet("color: #888888; font-size: 14px;")
+        layout.addWidget(self.text_lbl)
+
+        self.btn = QPushButton("  Chọn Video")
+        self.btn.setIcon(load_icon("folder-open", "#FFFFFF", 16))
+        self.btn.setIconSize(QSize(16, 16))
+        self.btn.setFixedWidth(140)
+        self.btn.clicked.connect(self.open_video_clicked)
+        layout.addWidget(self.btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
 
 class DefectSeekBar(QWidget):
@@ -82,6 +110,7 @@ class DefectSeekBar(QWidget):
 
 class VideoPlayerWidget(QWidget):
     position_changed = pyqtSignal(float)
+    open_video_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -95,16 +124,24 @@ class VideoPlayerWidget(QWidget):
         self._store = None
         self._markers: list[tuple[float, str]] = []
         self._build_ui()
+        self._empty_state.open_video_clicked.connect(self.open_video_requested)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
+        self._stack = QStackedWidget()
+
+        self._empty_state = EmptyStateWidget()
+        self._stack.addWidget(self._empty_state)   # page 0
+
         self.video_label = QLabel()
         self.video_label.setObjectName("video_label")
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_label.setMinimumSize(640, 360)
-        layout.addWidget(self.video_label, stretch=1)
+        self._stack.addWidget(self.video_label)    # page 1
+
+        layout.addWidget(self._stack, stretch=1)
 
         controls = QHBoxLayout()
         self.btn_play = QPushButton("▶")
@@ -130,6 +167,7 @@ class VideoPlayerWidget(QWidget):
         self._current_frame = 0
         self.clear_markers()
         self._show_current_frame()
+        self._stack.setCurrentIndex(1)
 
     def set_store(self, store) -> None:
         self._store = store

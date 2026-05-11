@@ -1,11 +1,13 @@
 from pathlib import Path
 from PyQt6.QtWidgets import (QToolBar, QLabel, QPushButton, QSlider, QComboBox,
                               QFileDialog, QWidget, QSizePolicy)
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from src.utils.language_manager import t, set_language, current as current_lang
 from src.utils.branding_loader import load_logo
 from src.utils.theme_manager import available_themes
+from src.utils.icon_loader import load_icon
 import src.utils.app_config as app_config
+
 
 class ToolbarWidget(QToolBar):
     open_video_requested = pyqtSignal(str)
@@ -21,6 +23,8 @@ class ToolbarWidget(QToolBar):
         self.setMovable(False)
         self._current_model = app_config.get("model_path")
         self._mode = app_config.get("theme_mode")
+        self._icon_sun = load_icon("sun", "#FFFFFF")
+        self._icon_moon = load_icon("moon", "#FFFFFF")
         self._build_ui()
 
     def _build_ui(self):
@@ -32,17 +36,24 @@ class ToolbarWidget(QToolBar):
             self.addSeparator()
 
         self.btn_open = QPushButton()
+        self.btn_open.setIcon(load_icon("folder-open", "#FFFFFF"))
+        self.btn_open.setIconSize(QSize(16, 16))
         self.btn_open.clicked.connect(self._on_open_video)
         self.addWidget(self.btn_open)
         self.addSeparator()
 
         self.btn_model = QPushButton()
+        self.btn_model.setIcon(load_icon("cpu", "#FFFFFF"))
+        self.btn_model.setIconSize(QSize(16, 16))
         self.btn_model.setMaximumWidth(180)
         self.btn_model.clicked.connect(self._on_select_model)
         self.addWidget(self.btn_model)
         self._update_model_button_text()
         self.addSeparator()
 
+        conf_icon = QLabel()
+        conf_icon.setPixmap(load_icon("sliders", "#888888", 14).pixmap(14, 14))
+        self.addWidget(conf_icon)
         self.conf_label = QLabel()
         self.addWidget(self.conf_label)
         self.conf_slider = QSlider(Qt.Orientation.Horizontal)
@@ -56,6 +67,9 @@ class ToolbarWidget(QToolBar):
         self.addWidget(self.conf_value_label)
         self.addSeparator()
 
+        theme_icon = QLabel()
+        theme_icon.setPixmap(load_icon("droplet", "#888888", 14).pixmap(14, 14))
+        self.addWidget(theme_icon)
         self.theme_combo = QComboBox()
         theme_labels = {"steel_blue": "Steel Blue", "slate_amber": "Slate & Amber", "carbon_green": "Carbon & Green"}
         for key in available_themes():
@@ -67,12 +81,16 @@ class ToolbarWidget(QToolBar):
         self.addWidget(self.theme_combo)
 
         self.btn_mode = QPushButton()
-        self.btn_mode.setFixedWidth(60)
+        self.btn_mode.setFixedWidth(80)
+        self.btn_mode.setIconSize(QSize(16, 16))
         self._update_mode_button()
         self.btn_mode.clicked.connect(self._on_mode_toggle)
         self.addWidget(self.btn_mode)
         self.addSeparator()
 
+        globe_lbl = QLabel()
+        globe_lbl.setPixmap(load_icon("globe", "#888888", 14).pixmap(14, 14))
+        self.addWidget(globe_lbl)
         self.lang_combo = QComboBox()
         for code, label in [("vi", "VI"), ("en", "EN"), ("ko", "KO")]:
             self.lang_combo.addItem(label, code)
@@ -88,10 +106,14 @@ class ToolbarWidget(QToolBar):
         self.addWidget(spacer)
 
         self.btn_csv = QPushButton()
+        self.btn_csv.setIcon(load_icon("download", "#FFFFFF"))
+        self.btn_csv.setIconSize(QSize(16, 16))
         self.btn_csv.clicked.connect(self.export_csv_requested.emit)
         self.addWidget(self.btn_csv)
 
         self.btn_pdf = QPushButton()
+        self.btn_pdf.setIcon(load_icon("file-text", "#FFFFFF"))
+        self.btn_pdf.setIconSize(QSize(16, 16))
         self.btn_pdf.clicked.connect(self.export_pdf_requested.emit)
         self.addWidget(self.btn_pdf)
 
@@ -109,7 +131,12 @@ class ToolbarWidget(QToolBar):
         self.btn_model.setText(f"Model: {Path(self._current_model).name}")
 
     def _update_mode_button(self):
-        self.btn_mode.setText(t("theme_light") if self._mode == "dark" else t("theme_dark"))
+        if self._mode == "dark":
+            self.btn_mode.setIcon(self._icon_sun)
+            self.btn_mode.setText(t("theme_light"))
+        else:
+            self.btn_mode.setIcon(self._icon_moon)
+            self.btn_mode.setText(t("theme_dark"))
 
     def _on_open_video(self):
         path, _ = QFileDialog.getOpenFileName(self, t("file_dialog_video"), "", "Video Files (*.mp4 *.avi *.mov *.mkv)")

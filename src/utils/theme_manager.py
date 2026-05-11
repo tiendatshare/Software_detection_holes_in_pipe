@@ -125,6 +125,19 @@ def get_stylesheet(theme: str, mode: str) -> str:
             background-color: #000000;
             border-radius: 4px;
         }}
+        QFrame#DefectCardHigh, QFrame#DefectCardMid, QFrame#DefectCardLow {{
+            background-color: {c['sidebar']};
+            border-radius: 6px;
+            border: 1px solid {c['border']};
+        }}
+        QFrame#DefectCardHigh {{ border-left: 4px solid #E53935; }}
+        QFrame#DefectCardMid  {{ border-left: 4px solid #F59E0B; }}
+        QFrame#DefectCardLow  {{ border-left: 4px solid #43A047; }}
+        QFrame#DefectCardHigh:hover, QFrame#DefectCardMid:hover, QFrame#DefectCardLow:hover {{
+            background-color: {c['row_hover']};
+        }}
+        QScrollArea {{ border: none; background: transparent; }}
+        QScrollArea > QWidget > QWidget {{ background: transparent; }}
     """
 
 def available_themes() -> list[str]:
