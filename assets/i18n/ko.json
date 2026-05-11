@@ -21,5 +21,7 @@
   "error_video_not_found": "비디오를 열 수 없음: {path}",
   "theme_light": "라이트",
   "theme_dark": "다크",
-  "language_label": "언어"
+  "language_label": "언어",
+  "empty_state_message": "비디오를 열어 분석을 시작하세요",
+  "empty_state_button": "비디오 열기"
 }

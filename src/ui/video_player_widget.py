@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint, QSize
 from PyQt6.QtGui import QImage, QPixmap, QPainter, QColor, QFont, QPolygon
 from src.utils.icon_loader import load_icon
+from src.utils.language_manager import t
 
 
 class EmptyStateWidget(QWidget):
@@ -21,17 +22,21 @@ class EmptyStateWidget(QWidget):
         icon_lbl.setPixmap(load_icon("video", "#888888", 56).pixmap(56, 56))
         layout.addWidget(icon_lbl)
 
-        self.text_lbl = QLabel("Mở video để bắt đầu phân tích")
+        self.text_lbl = QLabel(t("empty_state_message"))
         self.text_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.text_lbl.setStyleSheet("color: #888888; font-size: 14px;")
         layout.addWidget(self.text_lbl)
 
-        self.btn = QPushButton("  Chọn Video")
+        self.btn = QPushButton("  " + t("empty_state_button"))
         self.btn.setIcon(load_icon("folder-open", "#FFFFFF", 16))
         self.btn.setIconSize(QSize(16, 16))
         self.btn.setFixedWidth(140)
         self.btn.clicked.connect(self.open_video_clicked)
         layout.addWidget(self.btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    def retranslate_ui(self):
+        self.text_lbl.setText(t("empty_state_message"))
+        self.btn.setText("  " + t("empty_state_button"))
 
 
 class DefectSeekBar(QWidget):
@@ -263,6 +268,9 @@ class VideoPlayerWidget(QWidget):
     def _fmt_time(seconds: float) -> str:
         s = int(seconds)
         return f"{s//3600:02d}:{(s%3600)//60:02d}:{s%60:02d}"
+
+    def retranslate_ui(self) -> None:
+        self._empty_state.retranslate_ui()
 
     def closeEvent(self, event):
         if self._cap:
